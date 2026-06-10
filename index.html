@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Chiller Monitor | Plasser India</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+:root {
+  color-scheme: dark;
+  --bg-app: #0b0c10; --bg-panel: #1f2833; --bg-card: #151b22; --bg-input: #0b0c10;
+  --primary: #45a29e; --primary-glow: rgba(69,162,158,0.3); --secondary: #66fcf1;
+  --text-main: #c5c6c7; --text-bright: #ffffff; --text-muted: #8b929a; --border: #2a323d;
+  --crit: #ef4444; --warn: #f59e0b; --sens: #3b82f6; --maint: #10b981;
+  --font-mono: 'Share Tech Mono', monospace; --font-head: 'Rajdhani', sans-serif; --font-body: 'Inter', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg-app); color: var(--text-main); font-family: var(--font-body); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+ 
+/* TOAST */
+#toast { visibility: hidden; min-width: 260px; background: var(--secondary); color: #000; text-align: center; border-radius: 8px; padding: 14px 20px; position: fixed; z-index: 9999; left: 50%; bottom: 100px; transform: translateX(-50%); font-family: var(--font-head); font-size: 1rem; font-weight: 700; text-transform: uppercase; box-shadow: 0 4px 15px var(--primary-glow); }
+#toast.show { visibility: visible; animation: fadein 0.4s, fadeout 0.4s 2.6s; }
+@keyframes fadein { from {bottom:80px;opacity:0} to {bottom:100px;opacity:1} }
+@keyframes fadeout { from {bottom:100px;opacity:1} to {bottom:80px;opacity:0} }
+ 
+/* HEADER */
+header { background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 10; gap: 12px; }
+.brand h1 { font-family: var(--font-head); font-size: 1.5rem; color: var(--secondary); text-transform: uppercase; letter-spacing: 1px; }
+.brand p { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.clock { font-family: var(--font-mono); font-size: 1.1rem; color: var(--primary); text-align: right; }
+.clock span { display: block; font-size: 0.65rem; color: var(--text-muted); }
+.storage-badge { font-family: var(--font-mono); font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; border: 1px solid; white-space: nowrap; }
+.storage-badge.cloud { color: var(--maint); border-color: var(--maint); background: rgba(16,185,129,0.08); }
+.storage-badge.local { color: var(--warn); border-color: var(--warn); background: rgba(245,158,11,0.08); }
+ 
+/* LAYOUT */
+main { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 100px; }
+.view { display: none !important; padding: 20px; animation: fade 0.25s ease; max-width: 1000px; margin: 0 auto; width: 100%; }
+.view.active { display: block !important; }
+#view-wizard.active { display: flex !important; }
+@keyframes fade { from {opacity:0} to {opacity:1} }
+ 
+/* SEARCH */
+.search-wrapper { position: sticky; top: 0; background: var(--bg-app); padding-bottom: 16px; z-index: 5; padding-top: 4px; }
+.search-input { width: 100%; padding: 18px 20px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-bright); font-family: var(--font-mono); font-size: 1.1rem; outline: none; }
+.search-input:focus { border-color: var(--secondary); box-shadow: 0 0 12px var(--primary-glow); }
+ 
+/* SECTION HEADERS */
+.list-header { font-family: var(--font-head); font-size: 1.1rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+ 
+/* CATEGORY GROUPS */
+.category-group { margin-bottom: 8px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.category-header {
+  display: flex; align-items: center; gap: 12px; padding: 16px 18px; cursor: pointer;
+  background: var(--bg-panel); transition: background 0.2s; user-select: none;
+}
+.category-header:hover { background: rgba(69,162,158,0.06); }
+.category-header:active { background: rgba(69,162,158,0.12); }
+.cat-icon { font-size: 1.2rem; width: 28px; text-align: center; flex-shrink: 0; }
+.cat-info { flex: 1; }
+.cat-name { font-family: var(--font-head); font-size: 1.1rem; color: var(--text-bright); text-transform: uppercase; letter-spacing: 0.5px; }
+.cat-desc { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.cat-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.cat-count { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); padding: 3px 8px; border-radius: 4px; }
+.cat-sev-dots { display: flex; gap: 4px; }
+.sev-dot { width: 8px; height: 8px; border-radius: 50%; }
+.cat-chevron { color: var(--text-muted); font-size: 0.9rem; transition: transform 0.25s; flex-shrink: 0; }
+.category-header.open .cat-chevron { transform: rotate(90deg); }
+.category-body { display: none; }
+.category-body.open { display: block; }
+.alarm-list { display: flex; flex-direction: column; gap: 0; }
+.alarm-card { background: var(--bg-card); border-top: 1px solid var(--border); padding: 16px 18px; display: flex; gap: 16px; align-items: center; cursor: pointer; transition: all 0.15s; }
+.alarm-card:hover { background: rgba(69,162,158,0.04); }
+.alarm-card:active { background: rgba(69,162,158,0.1); }
+.ac-indicator { width: 5px; height: 38px; border-radius: 3px; flex-shrink: 0; }
+.ac-indicator.critical { background: var(--crit); box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+.ac-indicator.warning { background: var(--warn); }
+.ac-indicator.sensor { background: var(--sens); }
+.ac-indicator.maintenance { background: var(--maint); }
+.ac-code { font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; width: 72px; flex-shrink: 0; }
+.ac-code.critical { color: var(--crit); } .ac-code.warning { color: var(--warn); } .ac-code.sensor { color: var(--sens); } .ac-code.maintenance { color: var(--maint); }
+.ac-body { flex: 1; min-width: 0; }
+.ac-title { font-size: 1.05rem; font-weight: 600; color: var(--text-bright); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-sub { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); display: flex; gap: 10px; }
+.ac-arrow { color: var(--text-muted); font-size: 0.9rem; flex-shrink: 0; }
+ 
+/* SEARCH RESULTS (flat list when searching) */
+.search-results-list { display: flex; flex-direction: column; gap: 10px; }
+.search-result-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; display: flex; gap: 16px; align-items: center; cursor: pointer; transition: all 0.15s; }
+.search-result-card:hover { border-color: var(--primary); transform: translateX(3px); }
+.search-result-card:active { transform: scale(0.99); border-color: var(--secondary); }
+.src-cat-tag { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+ 
+/* WIZARD */
+#view-wizard { flex-direction: column; height: 100%; padding: 0; }
+.wiz-progress { display: flex; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
+.step-tab { flex: 1; text-align: center; padding: 14px 4px; font-family: var(--font-head); font-size: 0.95rem; color: var(--text-muted); text-transform: uppercase; border-bottom: 3px solid transparent; transition: all 0.2s; }
+.step-tab.active { color: var(--secondary); border-bottom-color: var(--secondary); font-weight: 700; }
+.step-tab.done { color: var(--primary); }
+.wiz-body { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 120px; max-width: 900px; margin: 0 auto; width: 100%; }
+.wiz-step-content { display: none; animation: slideIn 0.2s ease; }
+.wiz-step-content.active { display: block; }
+@keyframes slideIn { from {opacity:0;transform:translateX(8px)} to {opacity:1;transform:translateX(0)} }
+.wo-header { background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+.wo-meta { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.wo-code { font-family: var(--font-mono); font-size: 2.2rem; font-weight: 700; }
+.wo-register { font-family: var(--font-mono); font-size: 0.85rem; color: var(--primary); background: rgba(69,162,158,0.1); padding: 5px 10px; border-radius: 6px; border: 1px solid var(--primary); }
+.wo-title { font-size: 1.3rem; font-weight: 600; color: var(--text-bright); margin-bottom: 14px; }
+.wo-cause-box { background: rgba(255,255,255,0.03); border-left: 4px solid var(--primary); padding: 18px; border-radius: 0 12px 12px 0; margin-bottom: 20px; }
+.wo-cause-box p { font-size: 1rem; line-height: 1.6; color: var(--text-main); }
+.tactile-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.tactile-item { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: flex; gap: 14px; align-items: flex-start; cursor: pointer; transition: all 0.1s; }
+.tactile-item:active { transform: scale(0.99); }
+.tactile-item.checked { background: rgba(16,185,129,0.05); border-color: var(--maint); }
+.t-box { width: 26px; height: 26px; border: 2px solid var(--text-muted); border-radius: 6px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+.tactile-item.checked .t-box { background: var(--maint); border-color: var(--maint); }
+.tactile-item.checked .t-box::after { content: '✔'; color: #000; font-size: 14px; font-weight: 900; }
+.t-text { font-size: 1.05rem; line-height: 1.5; color: var(--text-bright); }
+.tactile-item.checked .t-text { color: var(--text-muted); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 7px; margin-bottom: 18px; }
+.form-group label { font-family: var(--font-head); font-size: 0.95rem; color: var(--secondary); text-transform: uppercase; letter-spacing: 1px; }
+.form-control { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 14px; color: var(--text-bright); font-family: var(--font-body); font-size: 1rem; outline: none; width: 100%; }
+.form-control:focus { border-color: var(--primary); box-shadow: 0 0 8px rgba(69,162,158,0.2); }
+select.form-control { appearance: none; cursor: pointer; }
+textarea.form-control { resize: vertical; min-height: 90px; }
+.wiz-footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-panel); border-top: 1px solid var(--border); padding: 16px 20px; display: flex; gap: 12px; z-index: 20; }
+.btn { flex: 1; padding: 18px 10px; border: none; border-radius: 8px; font-family: var(--font-head); font-size: 1.1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+.btn-secondary { background: var(--border); color: var(--text-bright); }
+.btn-primary { background: var(--primary); color: #000; }
+.btn-primary:disabled { background: var(--bg-input); color: var(--text-muted); cursor: not-allowed; border: 1px solid var(--border); }
+ 
+/* DASHBOARD */
+.dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+.dash-header h2 { font-family: var(--font-head); font-size: 1.3rem; color: var(--text-muted); text-transform: uppercase; }
+/* KPI row — 2 cols on mobile */
+.kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+@media(min-width: 700px) { .kpi-row { grid-template-columns: repeat(4, 1fr); } }
+.kpi-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.kpi-val { font-family: var(--font-mono); font-size: 1.8rem; font-weight: 700; color: var(--text-bright); line-height: 1; }
+@media(min-width: 700px) { .kpi-val { font-size: 2.2rem; } }
+.kpi-lbl { font-family: var(--font-head); font-size: 0.82rem; color: var(--secondary); text-transform: uppercase; margin-top: 6px; letter-spacing: 0.5px; }
+.kpi-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; }
+/* Chart cards */
+.chart-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; overflow: hidden; }
+.chart-title { font-family: var(--font-head); font-size: 0.95rem; color: var(--text-bright); text-transform: uppercase; margin-bottom: 16px; letter-spacing: 1px; }
+/* SVG chart — scrollable on mobile so it never overflows */
+.svg-chart-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.svg-chart-container { min-width: 320px; width: 100%; height: 180px; }
+@media(min-width: 600px) { .svg-chart-container { height: 220px; } }
+.line-path { fill: none; stroke: var(--secondary); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: drawLine 1.5s forwards ease-out; }
+@keyframes drawLine { to { stroke-dashoffset: 0; } }
+.point-circle { fill: var(--bg-panel); stroke: var(--primary); stroke-width: 2.5; cursor: pointer; transition: all 0.2s; }
+.point-circle:hover { fill: var(--secondary); stroke: #fff; }
+.axis-text { font-family: var(--font-mono); font-size: 11px; fill: var(--text-muted); }
+.chart-details { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-top: 14px; display: none; }
+.chart-details h4 { font-family: var(--font-mono); color: var(--secondary); margin-bottom: 10px; font-size: 0.95rem; }
+.chart-details ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.chart-details li { background: var(--bg-input); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--primary); font-size: 0.85rem; }
+/* Sub charts — always stacked on mobile */
+.sub-chart-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media(min-width: 700px) { .sub-chart-grid { grid-template-columns: 1fr 1fr; } }
+.donut-container { display: flex; align-items: center; gap: 20px; }
+.donut { width: 110px; height: 110px; border-radius: 50%; background: conic-gradient(var(--bg-input) 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.donut-inner { width: 76px; height: 76px; border-radius: 50%; background: var(--bg-panel); display: flex; align-items: center; justify-content: center; flex-direction: column; }
+.donut-inner span { font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; color: var(--text-bright); }
+.donut-inner small { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; }
+.donut-legend { display: flex; flex-direction: column; gap: 9px; flex: 1; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-main); }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.bar-container { display: flex; flex-direction: column; gap: 14px; }
+.bar-row { display: flex; align-items: center; gap: 10px; }
+.bar-label { width: 68px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); }
+.bar-track { flex: 1; height: 22px; background: var(--bg-input); border-radius: 6px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--primary); transition: width 0.8s ease; width: 0%; border-radius: 6px; }
+.bar-val { width: 26px; text-align: right; font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; color: var(--secondary); }
+ 
+/* LOGS */
+.logs-filter-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 14px; }
+.filter-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.filter-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+@media(max-width: 600px) { .filter-row, .filter-row-3 { grid-template-columns: 1fr; } }
+.filter-group { display: flex; flex-direction: column; gap: 5px; }
+.filter-group label { font-family: var(--font-head); font-size: 0.8rem; color: var(--secondary); text-transform: uppercase; letter-spacing: 1px; }
+.filter-control { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; color: var(--text-bright); font-family: var(--font-body); font-size: 0.9rem; outline: none; width: 100%; }
+.filter-control:focus { border-color: var(--primary); }
+select.filter-control { appearance: none; cursor: pointer; }
+.filter-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn-filter-apply { background: var(--primary); color: #000; border: none; border-radius: 8px; padding: 11px 22px; font-family: var(--font-head); font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; }
+.btn-filter-apply:hover { background: var(--secondary); }
+.btn-filter-reset { background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 8px; padding: 11px 22px; font-family: var(--font-head); font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; }
+.btn-filter-reset:hover { color: var(--text-bright); border-color: var(--text-muted); }
+.btn-download { background: rgba(69,162,158,0.1); color: var(--secondary); border: 1px solid var(--primary); border-radius: 8px; padding: 11px 22px; font-family: var(--font-head); font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: all 0.2s; white-space: nowrap; }
+.btn-download:hover { background: rgba(69,162,158,0.2); }
+.logs-summary-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.logs-result-count { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted); }
+.logs-result-count span { color: var(--secondary); font-weight: 700; }
+.history-list { display: flex; flex-direction: column; gap: 14px; }
+.history-card { background: var(--bg-panel); border: 1px solid var(--border); border-left: 4px solid var(--maint); border-radius: 12px; padding: 18px; transition: border-color 0.15s; }
+.history-card:hover { border-color: var(--primary); border-left-color: var(--maint); }
+.hc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+.hc-date { font-family: var(--font-mono); font-size: 0.85rem; color: var(--primary); }
+.hc-tech { font-family: var(--font-head); font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; }
+.hc-code { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; margin-bottom: 3px; }
+.hc-name { font-size: 1rem; font-weight: 600; margin-bottom: 10px; }
+.hc-unit-badge { display: inline-block; background: var(--bg-input); border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.8rem; margin-bottom: 12px; color: var(--secondary); }
+.hc-notes { background: var(--bg-input); padding: 12px; border-radius: 8px; font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; font-style: italic; }
+.hc-footer { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.hc-time { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+.hc-delete-btn { background: transparent; border: 1px solid rgba(239,68,68,0.3); color: rgba(239,68,68,0.6); border-radius: 6px; padding: 5px 12px; font-family: var(--font-head); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; }
+.hc-delete-btn:hover { background: rgba(239,68,68,0.15); color: var(--crit); border-color: var(--crit); }
+ 
+/* NAV */
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-panel); border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 10; }
+.nav-tab { flex: 1; padding: 14px 0; background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--text-muted); font-family: var(--font-head); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; }
+.nav-tab:hover { background: rgba(255,255,255,0.02); }
+.nav-tab.active { color: var(--secondary); }
+.nav-tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; }
+ 
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); }
+.empty-state .empty-icon { font-size: 2.2rem; margin-bottom: 14px; opacity: 0.4; }
+.empty-state p { font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.8; }
+ 
+/* LOADING OVERLAY */
+.sync-indicator { display: none; font-family: var(--font-mono); font-size: 0.7rem; color: var(--primary); animation: blink 1.2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div id="toast">Done</div>
+ 
+<header>
+  <div class="brand">
+    <h1>Chiller Monitor</h1>
+    <p>BLUEBOX KAPPA REV · PLASSER INDIA</p>
+  </div>
+  <div class="header-right">
+    <div id="storageBadge" class="storage-badge local">⚡ LOCAL</div>
+    <div class="clock" id="liveClock">00:00<span>IST</span></div>
+  </div>
+</header>
+ 
+<main>
+  <!-- HOME VIEW -->
+  <div id="view-home" class="view active">
+    <div class="search-wrapper">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search alarm code (e.g. AL006) or keyword..." oninput="handleSearch()" autocomplete="off">
+    </div>
+    <div id="categoryView"><!-- rendered by renderCategories() --></div>
+    <div id="searchView" style="display:none;">
+      <div class="list-header" id="searchHeader">Search Results</div>
+      <div class="search-results-list" id="searchResultsList"></div>
+    </div>
+  </div>
+ 
+  <!-- WIZARD VIEW -->
+  <div id="view-wizard" class="view">
+    <div class="wiz-progress">
+      <div class="step-tab active" id="tab-0">1. Assess</div>
+      <div class="step-tab" id="tab-1">2. Action</div>
+      <div class="step-tab" id="tab-2">3. Log</div>
+    </div>
+    <div class="wiz-body">
+      <div class="wiz-step-content active" id="step-0">
+        <div class="wo-header">
+          <div class="wo-meta">
+            <div class="wo-code" id="woCode">AL000</div>
+            <div class="wo-register" id="woReg">Modbus: 00000</div>
+          </div>
+          <div class="wo-title" id="woName">Alarm Title</div>
+        </div>
+        <div class="list-header">Root Cause Physics</div>
+        <div class="wo-cause-box"><p id="woCause"></p></div>
+      </div>
+      <div class="wiz-step-content" id="step-1">
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:14px;">* Checkboxes optional — skip if root cause is known.</p>
+        <div class="list-header">Diagnostic Checks</div>
+        <div class="tactile-list" id="wizCheckList"></div>
+        <div class="list-header">Resolution Steps</div>
+        <div class="tactile-list" id="wizFixList"></div>
+      </div>
+      <div class="wiz-step-content" id="step-2">
+        <div class="list-header">Log This Incident</div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Machine Unit</label>
+            <select id="logUnit" class="form-control">
+              <option value="chiller-1">chiller-1</option>
+              <option value="chiller-2">chiller-2</option>
+              <option value="chiller-3">chiller-3</option>
+              <option value="chiller-4">chiller-4</option>
+              <option value="common system">common system</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Affected Circuit</label>
+            <select id="logCircuit" class="form-control">
+              <option value="Circuit 1">Circuit 1</option>
+              <option value="Circuit 2">Circuit 2</option>
+              <option value="Common System">Common System</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Date of Incident</label>
+            <input type="date" id="logDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Technician</label>
+            <select id="logTech" class="form-control" required>
+              <option value="" disabled selected>-- Select --</option>
+              <option value="Imtiyaz">Imtiyaz</option>
+              <option value="Ganesh">Ganesh</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Downtime (Mins)</label>
+          <input type="number" id="logTime" class="form-control" placeholder="e.g. 30" min="0" required>
+        </div>
+        <div class="form-group">
+          <label>Resolution Notes</label>
+          <textarea id="logNotes" class="form-control" placeholder="Briefly detail the actual fix and parts used..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="wiz-footer">
+      <button class="btn btn-ghost" id="btnWizCancel" onclick="abortWizard()">Cancel</button>
+      <button class="btn btn-secondary" id="btnWizPrev" style="display:none" onclick="prevStep()">Prev</button>
+      <button class="btn btn-primary" id="btnWizNext" onclick="nextStep()">Next Step</button>
+    </div>
+  </div>
+ 
+  <!-- DASHBOARD VIEW -->
+  <div id="view-dashboard" class="view">
+    <div class="dash-header">
+      <h2>Plant Dashboard</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="dashMonthFilter" class="form-control" style="width:auto;padding:9px 14px;" onchange="renderDashboard()">
+          <option value="all">All Time</option>
+        </select>
+        <select id="dashUnitFilter" class="form-control" style="width:auto;padding:9px 14px;" onchange="renderDashboard()">
+          <option value="All plant">All plant</option>
+          <option value="chiller-1">chiller-1</option>
+          <option value="chiller-2">chiller-2</option>
+          <option value="chiller-3">chiller-3</option>
+          <option value="chiller-4">chiller-4</option>
+          <option value="common system">common system</option>
+        </select>
+      </div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi-card"><div class="kpi-val" id="dashTotalFixes">0</div><div class="kpi-lbl">Total Incidents</div><div class="kpi-sub">Logged</div></div>
+      <div class="kpi-card"><div class="kpi-val" id="dashTotalHours">0h</div><div class="kpi-lbl">Total Downtime</div><div class="kpi-sub">Cumulative</div></div>
+      <div class="kpi-card"><div class="kpi-val" id="dashMTTR" style="color:var(--maint)">0m</div><div class="kpi-lbl">MTTR</div><div class="kpi-sub">Mean Time To Repair</div></div>
+      <div class="kpi-card"><div class="kpi-val" id="dashTopFault" style="font-size:1.6rem;color:var(--warn)">--</div><div class="kpi-lbl">Top Fault</div><div class="kpi-sub" id="dashTopFaultName" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">--</div></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Incidents Over Time</div>
+      <div class="svg-chart-wrapper">
+        <div class="svg-chart-container" id="svgChartContainer"></div>
+      </div>
+      <div id="chartTooltip" class="chart-details"></div>
+    </div>
+    <div class="sub-chart-grid">
+      <div class="chart-card">
+        <div class="chart-title">By Severity</div>
+        <div class="donut-container">
+          <div class="donut" id="severityDonut"><div class="donut-inner"><span id="donutCenter">0</span><small>TOTAL</small></div></div>
+          <div class="donut-legend" id="severityLegend"></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">By Circuit</div>
+        <div class="bar-container" id="chartCircuits"></div>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- LOGS VIEW -->
+  <div id="view-logs" class="view">
+    <div class="list-header">Maintenance Log</div>
+    <div class="logs-filter-bar">
+      <div class="filter-row">
+        <div class="filter-group"><label>Start Date</label><input type="date" id="filterStartDate" class="filter-control"></div>
+        <div class="filter-group"><label>End Date</label><input type="date" id="filterEndDate" class="filter-control"></div>
+      </div>
+      <div class="filter-row-3">
+        <div class="filter-group">
+          <label>Machine</label>
+          <select id="filterUnit" class="filter-control">
+            <option value="all">All Machines</option>
+            <option value="chiller-1">chiller-1</option>
+            <option value="chiller-2">chiller-2</option>
+            <option value="chiller-3">chiller-3</option>
+            <option value="chiller-4">chiller-4</option>
+            <option value="common system">common system</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Technician</label>
+          <select id="filterTech" class="filter-control">
+            <option value="all">All</option>
+            <option value="Imtiyaz">Imtiyaz</option>
+            <option value="Ganesh">Ganesh</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Circuit</label>
+          <select id="filterCircuit" class="filter-control">
+            <option value="all">All Circuits</option>
+            <option value="Circuit 1">Circuit 1</option>
+            <option value="Circuit 2">Circuit 2</option>
+            <option value="Common System">Common System</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button class="btn-filter-apply" onclick="applyLogsFilter()">Apply</button>
+        <button class="btn-filter-reset" onclick="resetLogsFilter()">Reset</button>
+        <button class="btn-download" onclick="downloadLogs()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download CSV
+        </button>
+      </div>
+    </div>
+    <div class="logs-summary-bar">
+      <div class="logs-result-count" id="logsResultCount">Showing <span>0</span> records</div>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+</main>
+ 
+<nav id="mainNav">
+  <button class="nav-tab active" id="tab-home" onclick="switchMainView('home', true)">
+    <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    Alarms
+  </button>
+  <button class="nav-tab" id="tab-dashboard" onclick="switchMainView('dashboard')">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Dashboard
+  </button>
+  <button class="nav-tab" id="tab-logs" onclick="switchMainView('logs')">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    Logs
+  </button>
+</nav>
+ 
+<script>
+/* ============================================================
+   ALARM DATABASE WITH CATEGORIES
+   ============================================================ */
+const CATEGORIES = [
+  {
+    id: 'system', name: 'System & Power', icon: '⚡',
+    desc: 'Controller, comms, voltage, RTC',
+    codes: ['AL001','AL015','AL016','AL017','AL055','AL126','AL192','AL201','AL211']
+  },
+  {
+    id: 'pump_flow', name: 'Pump & Flow', icon: '💧',
+    desc: 'Flow switches, user/source/free cooling',
+    codes: ['AL002','AL004','AL005']
+  },
+  {
+    id: 'pressure', name: 'Pressure Faults', icon: '🔴',
+    desc: 'HP/LP switches, transducers, pumpdown, unloading',
+    codes: ['AL006','AL007','AL010','AL011','AL114','AL115','AL118','AL119','AL122','AL123','AL156','AL157','AL193','AL194','AL197','AL198','AL203','AL204','AL233','AL234']
+  },
+  {
+    id: 'compressor', name: 'Compressor', icon: '⚙️',
+    desc: 'Thermal overload, oil level, maintenance',
+    codes: ['AL018','AL023','AL051','AL052','AL127','AL132']
+  },
+  {
+    id: 'fans', name: 'Condenser Fans', icon: '🌀',
+    desc: 'Fan thermal overloads, VFD faults',
+    codes: ['AL035','AL036','AL039']
+  },
+  {
+    id: 'temperature', name: 'Temperature & Discharge', icon: '🌡️',
+    desc: 'High discharge temp, superheat, antifreeze',
+    codes: ['AL057','AL058','AL148','AL170','AL171','AL178','AL179','AL182','AL183','AL214','AL216']
+  },
+  {
+    id: 'sensors', name: 'Sensor Faults', icon: '📡',
+    desc: 'NTC/PTC probes, pressure transducers',
+    codes: ['AL061','AL062','AL065','AL066','AL067','AL070','AL071','AL072','AL073','AL080','AL094','AL095','AL098','AL099','AL102','AL103']
+  },
+  {
+    id: 'inverter_valve', name: 'Inverter & Valve', icon: '🔌',
+    desc: 'EEV drivers, VFD inverters',
+    codes: ['AL160','AL161','AL166','AL167']
+  }
+];
+ 
+const ALARMS = [
+  { code:'AL001', name:'Internal Memory Error', reg:'54016', sev:'critical', stops:true, cause:'Controller board suffered memory corruption. Triggered by severe power surge, phase loss, or failed firmware update.', check:['Measure incoming 24V DC power supply to the controller board. Ensure it is stable.','Inspect board for burnt components or loose communication ribbons.'], fix:['Perform a hard reset: Press and hold RESET button on board for 10 seconds.','If alarm returns, perform Factory Reset via service menu.','Replace main controller PCB.'] },
+  { code:'AL015', name:'Master/Slave Status Mismatch', reg:'54030', sev:'warning', stops:false, cause:'In a multi-unit setup, the master and slave units have a mismatch in operational status.', check:['Check which unit is designated master.','Verify communication cable between units is intact.'], fix:['Acknowledge alarm on master controller.','Resolve any slave faults and re-synchronize network.'] },
+  { code:'AL016', name:'Master Communication Error', reg:'54031', sev:'warning', stops:false, cause:'Communication loss between master controller and the BMS network.', check:['Check BMS communication cable (LonWorks/Modbus) to master unit.','Test communication port on controller.'], fix:['Re-seat communication cable connectors.','Restart BMS gateway if offline.'] },
+  { code:'AL017', name:'Slave Communication Error', reg:'54032', sev:'warning', stops:false, cause:'Master controller has lost communication with one or more slave units.', check:['Identify which slave unit is not responding.','Check communication cable between master and slave.'], fix:['Re-seat connectors or replace cable.','Restore slave unit power.'] },
+  { code:'AL055', name:'Phases Sequence Error', reg:'54070', sev:'critical', stops:true, cause:'Incoming 3-phase power is rotating backwards, or a phase is missing. Locked out to prevent reverse scroll rotation.', check:['Use True RMS multimeter to check L1-L2, L2-L3, and L1-L3 voltages at main breaker.','Check if plant maintenance recently worked on the main panel.'], fix:['Swap any two incoming phase wires (e.g., L1 and L2) at the main terminal block.','Restore power and verify relay light turns green.'] },
+  { code:'AL126', name:'Unit Maintenance Due', reg:'54141', sev:'maintenance', stops:false, cause:'Chiller controller reached a scheduled maintenance interval.', check:['Access service menu to read maintenance hour counter.','Review standard maintenance checklist.'], fix:['Complete scheduled maintenance items.','Reset maintenance counter in service menu.'] },
+  { code:'AL192', name:'Min/Max Voltage (24h)', reg:'54207', sev:'warning', stops:false, cause:'Supply voltage has exceeded minimum or maximum acceptable limit over the past 24 hours.', check:['Measure current incoming supply voltage.','Check voltage log on BMS for peak/trough values.'], fix:['Log event. Contact power utility if sustained overvoltage.','Check incoming cable and transformer tap setting.'] },
+  { code:'AL201', name:'Min / Max Voltage (Live)', reg:'54216', sev:'warning', stops:false, cause:'Supply voltage is currently outside minimum/maximum operating range. Immediate risk of motor damage.', check:['Measure all 3 phase voltages at incoming terminal.','Check for single-phase condition or local facility voltage dip.'], fix:['Shut down unit if voltage is continuously out of range.','Correct voltage source or adjust transformer tap.'] },
+  { code:'AL211', name:'RTC Clock Fault', reg:'54226', sev:'warning', stops:false, cause:'Real-time clock battery fault. Log timestamps may be incorrect.', check:['Check displayed time and date on controller.','Locate CR2032 battery on PCB.'], fix:['Replace RTC battery.','Set correct date and time via menu.'] },
+  { code:'AL002', name:'Flow Switch — User Pump', reg:'54017', sev:'critical', stops:true, cause:'Flow switch in the building chilled water loop dropped open. Chiller shut down to prevent evaporator freezing solid.', check:['Confirm user pump is running and delivering chilled water.','Check pump inlet pressure gauge — if pulling vacuum, Y-strainer is blocked.'], fix:['Isolate user pump and clean out Y-strainer basket.','Replace mechanical flow switch paddle if stuck or broken.'] },
+  { code:'AL004', name:'Flow Switch — Source Pump', reg:'54019', sev:'critical', stops:true, cause:'No water flow detected on the condenser/heat-rejection side. System will run hot because it cannot reject heat.', check:['Confirm source pump is receiving power and circulating condenser water.','Check cooling tower/dry cooler water levels.'], fix:['Clean source pump intake screen.','Verify valve positions on the condenser water loop.'] },
+  { code:'AL005', name:'Flow Switch — Free Cooling', reg:'54020', sev:'warning', stops:false, cause:'No flow detected on free cooling circuit. Unit will not enter free cooling mode but mechanical cooling continues.', check:['Check free cooling pump/valve status.','Inspect free cooling loop isolation valves.'], fix:['Restore flow in free cooling loop.','Replace free cooling flow switch if mechanically worn.'] },
+  { code:'AL006', name:'HP Switch Tripped — Circuit 1', reg:'54021', sev:'critical', stops:true, cause:'Refrigerant pressure in Circuit 1 exceeded absolute maximum limit. Mechanical switch popped open due to failure to reject heat.', check:['Visually inspect condenser coils for heavy dust or plastic wrap.','Check condenser fan VFDs — are fans spinning at 100%?','Check if standing pressure is abnormally high.'], fix:['Perform chemical wash of condenser coils.','Reset tripped fan motor breakers.','HARD RESET: Physically push the red reset button on the pressure switch.'] },
+  { code:'AL007', name:'HP Switch Tripped — Circuit 2', reg:'54022', sev:'critical', stops:true, cause:'Refrigerant pressure in Circuit 2 exceeded absolute maximum limit.', check:['Inspect Circuit 2 condenser coils for blockage.','Check Circuit 2 fan operation.'], fix:['Clean coils and restore airflow.','HARD RESET: Physically push the red reset button on the Circuit 2 pressure switch.'] },
+  { code:'AL010', name:'High Cond. Pressure — Circuit 1 (Transducer)', reg:'54025', sev:'critical', stops:true, cause:'High condensing pressure detected by circuit 1 pressure transducer (software limit). Precedes hardware switch trip.', check:['Check condenser fans circuit 1 (count running fans).','Inspect condenser coil fouling.','Read live condensing pressure from BMS.'], fix:['Clean coil.','Restore fan(s).','Allow unit to cool, reset alarm.'] },
+  { code:'AL011', name:'High Cond. Pressure — Circuit 2 (Transducer)', reg:'54026', sev:'critical', stops:true, cause:'High condensing pressure on circuit 2 via software transducer limit.', check:['Check condenser fans circuit 2.','Inspect coil fouling circuit 2.','Read live pressure from BMS.'], fix:['Clean coil.','Restore fans.','Reset alarm.'] },
+  { code:'AL114', name:'Low HP-LP Differential — Circuit 1', reg:'54129', sev:'warning', stops:false, cause:'Pressure differential on circuit 1 is too low. Indicates poor compression efficiency (leak, stuck EEV, worn valves).', check:['Read HP and LP on circuit 1 from BMS.','Check EEV opening percentage.','Check refrigerant charge levels.'], fix:['Correct EEV setpoint if too open.','Check for refrigerant leak if charge appears low.','Inspect compressor valves.'] },
+  { code:'AL115', name:'Low HP-LP Differential — Circuit 2', reg:'54130', sev:'warning', stops:false, cause:'Pressure differential on circuit 2 is too low.', check:['Read HP and LP circuit 2 from BMS.','Check EEV 2 opening percentage.'], fix:['Correct EEV.','Check charge.','Valve inspection if needed.'] },
+  { code:'AL118', name:'Startup Pumpdown Timeout — Circuit 1', reg:'54132', sev:'warning', stops:false, cause:'Circuit 1 failed to complete pumpdown within allowed time at startup.', check:['Check EEV 1 driver status.','Read LP pressure on circuit 1 during pumpdown attempt.'], fix:['Reset EEV driver.','Adjust EEV pumpdown setpoint via service menu.'] },
+  { code:'AL119', name:'Startup Pumpdown Timeout — Circuit 2', reg:'54133', sev:'warning', stops:false, cause:'Circuit 2 pumpdown timeout at startup.', check:['Check EEV 2 driver.','Read LP pressure circuit 2 during pumpdown.'], fix:['Reset EEV driver.','Adjust pumpdown setpoint.'] },
+  { code:'AL122', name:'Shutdown Pumpdown Timeout — Circuit 1', reg:'54137', sev:'warning', stops:false, cause:'Circuit 1 did not complete pumpdown within allowed time at shutdown.', check:['Check EEV 1 — may be stuck open.','Check LP pressure descent rate during shutdown.'], fix:['Reset EEV driver.','Ensure crankcase heater is energised after shutdown.'] },
+  { code:'AL123', name:'Shutdown Pumpdown Timeout — Circuit 2', reg:'54138', sev:'warning', stops:false, cause:'Circuit 2 shutdown pumpdown timeout.', check:['Check EEV 2 operation.','Read LP pressure during shutdown.'], fix:['Reset EEV driver.','Ensure crankcase heater is energised.'] },
+  { code:'AL156', name:'Refrigerant Leak Pumpdown — Circuit 1', reg:'54171', sev:'critical', stops:true, cause:'Refrigerant leak detector has triggered a pumpdown on circuit 1. A leak exists in the plant room.', check:['Evacuate area if concentration is high.','Locate leak using electronic leak detector.'], fix:['Do NOT restart unit until leak is repaired.','Recover refrigerant, repair joint, pressure test, vacuum, recharge.'] },
+  { code:'AL157', name:'Refrigerant Leak Pumpdown — Circuit 2', reg:'54172', sev:'critical', stops:true, cause:'Refrigerant leak detector triggered pumpdown on circuit 2.', check:['Evacuate area.','Locate leak on circuit 2.'], fix:['Do NOT restart.','Recover, repair, test, vacuum, recharge.'] },
+  { code:'AL193', name:'Unloading — Low Evap Pressure Circ 1', reg:'54208', sev:'warning', stops:false, cause:'Circuit 1 is unloading due to low evaporation pressure.', check:['Read evaporator pressure circuit 1.','Check EEV 1 opening percentage.'], fix:['Adjust EEV setpoint if too closed.','Check refrigerant charge.'] },
+  { code:'AL194', name:'Unloading — Low Evap Pressure Circ 2', reg:'54209', sev:'warning', stops:false, cause:'Circuit 2 unloading due to low evaporation pressure.', check:['Read LP circuit 2.','Check EEV 2 opening percentage.'], fix:['Adjust EEV.','Check charge.'] },
+  { code:'AL197', name:'Unloading — High Cond Pressure Circ 1', reg:'54212', sev:'warning', stops:false, cause:'Circuit 1 is unloading due to high condensing pressure.', check:['Check condenser coil circuit 1.','Check all fans circuit 1 are running.'], fix:['Clean coil.','Restore fans.'] },
+  { code:'AL198', name:'Unloading — High Cond Pressure Circ 2', reg:'54213', sev:'warning', stops:false, cause:'Circuit 2 unloading due to high condensing pressure.', check:['Check condenser coil circuit 2 and fans.'], fix:['Clean coil.','Restore fans.'] },
+  { code:'AL203', name:'Low Evap Pressure Cutout — Circuit 1', reg:'54218', sev:'critical', stops:true, cause:'Suction pressure dropped below freezing limit. Usually caused by a massive leak or stuck-closed EEV.', check:['Check suction pipe — if covered in white ice, EEV is starving evaporator.','Check refrigerant sight glass.'], fix:['If empty: Find leak, recover gas, braze repair, deep vacuum, weigh in new charge.','If EEV stuck: Force EEV open via service tool. Replace stator if broken.'] },
+  { code:'AL204', name:'Low Evap Pressure Cutout — Circuit 2', reg:'54219', sev:'critical', stops:true, cause:'Low pressure safety cutout on circuit 2.', check:['Read LP circuit 2.','Check EEV 2.','Inspect evaporator for frost.'], fix:['Reset EEV driver if stuck.','Leak test if charge low.','Reset and monitor.'] },
+  { code:'AL233', name:'LP Safety Switch Tripped — Circuit 1', reg:'54248', sev:'critical', stops:true, cause:'Low-pressure safety switch (physical device, manual reset) tripped on circuit 1.', check:['Check for frost on suction line.','Check refrigerant sight glass (bubbles = undercharge).','Perform leak check.'], fix:['If leak confirmed: recover, repair, recharge.','Manually reset LP switch after fault cleared.'] },
+  { code:'AL234', name:'LP Safety Switch Tripped — Circuit 2', reg:'54249', sev:'critical', stops:true, cause:'Low-pressure safety switch tripped on circuit 2.', check:['Check for frost on circuit 2 suction line.','Check sight glass.'], fix:['Identify and repair root cause.','Manually reset LP switch.'] },
+  { code:'AL018', name:'Compressor Thermal Trip — Circuit 1', reg:'54033', sev:'critical', stops:true, cause:'Internal motor windings of the compressor on Circuit 1 overheated or pulled excess amps.', check:['Carefully touch compressor shell. If very hot, allow 30 mins to cool.','Use clamp meter to measure amp draw on all 3 phases upon restart.'], fix:['Press manual reset on compressor motor protector module.','If compressor groans and trips immediately on restart, lock it out.'] },
+  { code:'AL023', name:'Compressor Thermal Trip — Circuit 2', reg:'54038', sev:'critical', stops:true, cause:'Internal motor windings of the compressor on Circuit 2 overheated.', check:['Check supply voltage and phase balance.','Measure current draw after restart.'], fix:['Reset thermal overload.','Monitor current.','Escalate if needed.'] },
+  { code:'AL051', name:'Oil Level Low — Compressor Circuit 1', reg:'54066', sev:'critical', stops:true, cause:'Optical oil sensor in the Circuit 1 compressor sump detects no oil. Running dry will destroy bearings.', check:['Look at sight glass on Compressor. Is oil visible?','Check if oil separator return line is hot.'], fix:['If empty, pump down circuit and add POE oil.','If oil visible but alarm active: clean optical sensor prism or replace sensor.'] },
+  { code:'AL052', name:'Oil Level Low — Compressor Circuit 2', reg:'54067', sev:'critical', stops:true, cause:'Low oil level in the compressor on Circuit 2.', check:['Check compressor oil sight glass.','Inspect oil return line.'], fix:['Top up oil.','Fix return line if blocked.','Replace sensor if faulty.'] },
+  { code:'AL127', name:'Compressor Maintenance Due — Circuit 1', reg:'54142', sev:'maintenance', stops:false, cause:'Compressor on circuit 1 has reached its maintenance interval.', check:['Check operating hours in service menu.','Review: oil sample, vibration check, winding resistance.'], fix:['Complete compressor maintenance.','Reset counter in service menu.'] },
+  { code:'AL132', name:'Compressor Maintenance Due — Circuit 2', reg:'54147', sev:'maintenance', stops:false, cause:'Compressor on circuit 2 maintenance interval reached.', check:['Check compressor operating hours.','Review maintenance items.'], fix:['Complete maintenance.','Reset counter.'] },
+  { code:'AL035', name:'Fan Thermal Trip — Circuit 1', reg:'54050', sev:'warning', stops:false, cause:'Condenser fan motor on Circuit 1 tripped thermal breaker. Head pressure will climb.', check:['Look at fan deck — identify which fan is not spinning.','With power locked out, try to spin dead fan by hand. If stiff, bearings are shot.'], fix:['Clear physical debris jamming fan blade.','Reset fan motor breaker in panel.','Disconnect motor wiring if bearing is seized.'] },
+  { code:'AL036', name:'Fan Thermal Trip — Circuit 2', reg:'54051', sev:'warning', stops:false, cause:'Fan overload on circuit 2.', check:['Check circuit 2 fans and VFD fault code.','Inspect fan blades for obstruction.'], fix:['Reset VFD.','Replace motor if faulty.'] },
+  { code:'AL039', name:'Fan Thermal Trip — Circuit 1/2 Common', reg:'54054', sev:'warning', stops:false, cause:'Common fan overload for circuits 1 and 2.', check:['Check all condenser fans for both circuits.','Inspect VFD group fault.'], fix:['Clear fault.','Reset VFDs.','Replace faulty motor.'] },
+  { code:'AL057', name:'High Discharge Temp — Circuit 1', reg:'54072', sev:'critical', stops:true, cause:'Compressor discharge temperature on circuit 1 exceeds safe limit.', check:['Read live discharge temp from BMS.','Check suction superheat.','Inspect EEV operation on circuit 1.'], fix:['Correct EEV setpoint if needed.','Check refrigerant charge.','Allow to cool and reset.'] },
+  { code:'AL058', name:'High Discharge Temp — Circuit 2', reg:'54073', sev:'critical', stops:true, cause:'High discharge temperature on circuit 2.', check:['Read discharge temp circuit 2 from BMS.','Check suction superheat circuit 2.','Check EEV circuit 2.'], fix:['Correct EEV.','Check charge.','Cool and reset.'] },
+  { code:'AL148', name:'High Return Water Temperature', reg:'54163', sev:'warning', stops:false, cause:'Chilled water return temperature is abnormally high. Load exceeds capacity, or sensor faulty.', check:['Read CHW return temperature from BMS.','Check all cooling loads are operating normally.'], fix:['Reduce load or shed non-critical zones.','Repair any leaking zone valves.'] },
+  { code:'AL170', name:'Low Superheat — Circuit 1', reg:'54185', sev:'warning', stops:false, cause:'Suction superheat on circuit 1 is too low, risking liquid floodback to compressor.', check:['Check EEV 1 operation.','Check evaporator water flow.'], fix:['Adjust EEV PID settings if hunting.','Restore nominal water flow.'] },
+  { code:'AL171', name:'Low Superheat — Circuit 2', reg:'54186', sev:'warning', stops:false, cause:'Suction superheat on circuit 2 is too low.', check:['Check EEV 2 operation.','Check evaporator water flow.'], fix:['Adjust EEV.','Restore flow.'] },
+  { code:'AL178', name:'Antifreeze — User Exchanger 1', reg:'54193', sev:'critical', stops:true, cause:'Chilled water temperature at user exchanger 1 dropped to anti-freeze limit.', check:['Read exchanger 1 water temperature from BMS.','Check user circuit 1 flow.','Confirm antifreeze heater is working if installed.'], fix:['Restore water flow immediately.','Raise leaving water temperature setpoint if too low.','Add glycol if operating near 0°C ambient.'] },
+  { code:'AL179', name:'Antifreeze — User Exchanger 2', reg:'54194', sev:'critical', stops:true, cause:'Anti-freeze condition at user exchanger 2.', check:['Read exchanger 2 water temp.','Check flow on circuit 2.','Check glycol concentration.'], fix:['Restore flow.','Raise setpoint.','Reset only when temp recovered.'] },
+  { code:'AL182', name:'Antifreeze — Source Exchanger 1', reg:'54197', sev:'critical', stops:true, cause:'Source water entering source exchanger 1 is at anti-freeze limit.', check:['Read source inlet temperature on BMS.','Check source circuit flow.','Verify glycol concentration.'], fix:['Restore source flow.','Check and correct glycol level.','Raise source temperature if possible.'] },
+  { code:'AL183', name:'Antifreeze — Source Exchanger 2', reg:'54198', sev:'critical', stops:true, cause:'Anti-freeze condition at source exchanger 2.', check:['Read source temp on BMS.','Check source flow.','Check glycol.'], fix:['Restore flow.','Correct glycol.','Reset after temp recovery.'] },
+  { code:'AL214', name:'Antifreeze — Source Combined 1+2', reg:'54229', sev:'critical', stops:true, cause:'Combined source antifreeze alarm for circuits 1 and 2.', check:['Check source temperatures.','Check source flow.'], fix:['Restore flow.','Check glycol.'] },
+  { code:'AL216', name:'Antifreeze — User Combined 1+2', reg:'54231', sev:'critical', stops:true, cause:'Combined user antifreeze alarm for circuits 1 and 2.', check:['Check user temperatures.','Check user flow.'], fix:['Restore flow.','Check glycol.'] },
+  { code:'AL061', name:'Discharge PTC Sensor Fault — Circuit 1', reg:'54076', sev:'sensor', stops:false, cause:'Discharge temperature PTC sensor on circuit 1 is out of range or disconnected.', check:['Inspect PTC sensor at compressor 1 discharge pipe.','Check sensor wiring at controller terminal.','Measure PTC resistance.'], fix:['Re-seat connector.','Replace sensor if open/short circuit.'] },
+  { code:'AL062', name:'Discharge PTC Sensor Fault — Circuit 2', reg:'54077', sev:'sensor', stops:false, cause:'Discharge temperature PTC sensor fault on circuit 2.', check:['Inspect PTC sensor at circuit 2 discharge pipe.','Measure PTC resistance.'], fix:['Re-seat or replace sensor.'] },
+  { code:'AL065', name:'CHW Return Temp Sensor Fault', reg:'54080', sev:'sensor', stops:false, cause:'NTC 10k temperature probe measuring building return water has failed open or shorted out.', check:['Locate sensor pocket on main return pipe. Check for water ingress.','Unplug sensor and measure resistance. At 25°C = 10 kΩ.'], fix:['Strip wire back to clean copper and re-terminate.','Replace with new NTC 10k probe if out of spec.'] },
+  { code:'AL066', name:'CHW Supply Temp Sensor Fault — Circuit 1', reg:'54081', sev:'sensor', stops:false, cause:'NTC sensor fault on chilled water outlet, circuit 1.', check:['Inspect sensor on CHW supply pipe circuit 1.','Measure resistance vs NTC10K table.'], fix:['Re-seat connector.','Replace sensor.'] },
+  { code:'AL067', name:'CHW Supply Temp Sensor Fault — Circuit 2', reg:'54082', sev:'sensor', stops:false, cause:'NTC sensor fault on CHW outlet, circuit 2.', check:['Inspect sensor on CHW outlet circuit 2.','Measure resistance.'], fix:['Re-seat or replace sensor.'] },
+  { code:'AL070', name:'CHW Supply Temp Sensor Fault — Common', reg:'54085', sev:'sensor', stops:false, cause:'NTC sensor fault on common chilled water supply header.', check:['Inspect sensor on common CHW supply header.','Measure resistance.'], fix:['Re-seat or replace sensor.'] },
+  { code:'AL071', name:'Source Inlet Temp Sensor Fault — Common', reg:'54086', sev:'sensor', stops:false, cause:'NTC sensor fault on condenser entering common header.', check:['Inspect sensor on source inlet pipe.','Measure resistance.'], fix:['Re-seat or replace sensor.'] },
+  { code:'AL072', name:'Source Inlet Temp Sensor Fault — Circuit 1', reg:'54087', sev:'sensor', stops:false, cause:'NTC sensor fault on source water inlet for circuit 1.', check:['Inspect NTC sensor at circuit 1 water inlet.','Measure resistance.'], fix:['Re-seat or replace sensor.'] },
+  { code:'AL073', name:'Source Inlet Temp Sensor Fault — Circuit 2', reg:'54088', sev:'sensor', stops:false, cause:'NTC sensor fault on source water inlet for circuit 2.', check:['Inspect NTC sensor at circuit 2 water inlet.','Measure resistance.'], fix:['Re-seat or replace sensor.'] },
+  { code:'AL080', name:'Source Outlet Temp Sensor Fault', reg:'54095', sev:'sensor', stops:false, cause:'NTC sensor fault on source water outlet common header.', check:['Inspect sensor on source outlet pipe.','Measure resistance.'], fix:['Re-seat or replace sensor.'] },
+  { code:'AL094', name:'Cond. Pressure Transducer Fault — Circuit 1', reg:'54109', sev:'sensor', stops:false, cause:'Condensation pressure transducer on circuit 1 is out of range.', check:['Inspect pressure transducer on circuit 1 high-pressure line.','Measure transducer output voltage.'], fix:['Re-seat connector.','Replace transducer if signal out of spec.'] },
+  { code:'AL095', name:'Cond. Pressure Transducer Fault — Circuit 2', reg:'54110', sev:'sensor', stops:false, cause:'Condensation pressure transducer fault on circuit 2.', check:['Inspect transducer on circuit 2 high-pressure side.','Measure transducer output voltage.'], fix:['Re-seat connector.','Replace transducer.'] },
+  { code:'AL098', name:'Evap. Pressure Transducer Fault — Circuit 1', reg:'54113', sev:'sensor', stops:false, cause:'Evaporation pressure transducer on circuit 1 is out of range.', check:['Inspect low-pressure transducer on circuit 1 suction side.','Measure transducer output voltage.'], fix:['Re-seat connector.','Replace transducer.'] },
+  { code:'AL099', name:'Evap. Pressure Transducer Fault — Circuit 2', reg:'54114', sev:'sensor', stops:false, cause:'Evaporation pressure transducer fault on circuit 2.', check:['Inspect LP transducer on circuit 2 suction side.','Measure transducer output.'], fix:['Re-seat or replace transducer.'] },
+  { code:'AL102', name:'Suction Temp Sensor Fault — Circuit 1', reg:'54117', sev:'sensor', stops:false, cause:'Suction temperature NTC sensor on circuit 1 is out of range.', check:['Inspect sensor on circuit 1 suction line.','Measure resistance.'], fix:['Re-seat connector.','Replace sensor.'] },
+  { code:'AL103', name:'Suction Temp Sensor Fault — Circuit 2', reg:'54118', sev:'sensor', stops:false, cause:'Suction temperature NTC sensor on circuit 2 is out of range.', check:['Inspect sensor on circuit 2 suction line.','Measure resistance.'], fix:['Re-seat connector.','Replace sensor.'] },
+  { code:'AL160', name:'EEV Driver Offline — Circuit 1', reg:'54175', sev:'critical', stops:true, cause:'EEV driver/valve controller for circuit 1 is not communicating.', check:['Check EEV driver module physical LED status.','Check CAN bus/communication wiring to EEV driver.','Check 24V power supply.'], fix:['Re-seat communication connectors.','Cycle power to driver.','Replace driver module if no response.'] },
+  { code:'AL161', name:'EEV Driver Offline — Circuit 2', reg:'54176', sev:'critical', stops:true, cause:'EEV driver for circuit 2 is not communicating.', check:['Check EEV driver 2 LED status.','Check communication wiring and power.'], fix:['Re-seat connectors.','Cycle power.','Replace driver.'] },
+  { code:'AL166', name:'Inverter 1 Offline', reg:'54181', sev:'critical', stops:true, cause:'VFD/inverter 1 is not communicating with controller. May be faulted or powered off.', check:['Check inverter 1 display for fault code.','Check inverter power supply.','Inspect communication cable.'], fix:['Resolve inverter fault per manual.','Reset inverter.','Replace communication cable if damaged.'] },
+  { code:'AL167', name:'Inverter 2 Offline', reg:'54182', sev:'critical', stops:true, cause:'VFD/inverter 2 offline or faulted.', check:['Check inverter 2 display fault code.','Check power and communication cable.'], fix:['Resolve fault per manual.','Reset.','Replace cable or inverter if needed.'] }
+];
+ 
+// Build a quick lookup map
+const ALARM_MAP = {};
+ALARMS.forEach(a => { ALARM_MAP[a.code] = a; });
+ 
+// Build reverse map: code -> category
+const CODE_CATEGORY = {};
+CATEGORIES.forEach(cat => { cat.codes.forEach(c => { CODE_CATEGORY[c] = cat; }); });
+ 
+/* ============================================================
+   SUPABASE CONFIG — replace these two values with yours
+   ============================================================ */
+const SUPABASE_URL  = 'https://rhjsfuuvcrihhdorlzoe.supabase.co';   // e.g. https://xxxx.supabase.co
+const SUPABASE_ANON = 'sb_publishable_PQ_YZ3ZBtCTWjSZyhxdo3w_xuH9W3au';
+ 
+/* ============================================================
+   STORAGE ENGINE — Supabase primary, localStorage fallback
+   ============================================================ */
+let sb = null; // supabase client
+ 
+async function initStorage() {
+  const badge = document.getElementById('storageBadge');
+  try {
+    if (SUPABASE_URL === 'YOUR_SUPABASE_URL') throw new Error('Not configured');
+    const { createClient } = window.supabase;
+    sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+    // quick connectivity test
+    const { error } = await sb.from('chiller_logs').select('id').limit(1);
+    if (error) throw error;
+    badge.className = 'storage-badge cloud';
+    badge.textContent = '☁ SUPABASE';
+    console.log('[ChillerMonitor] Supabase connected');
+  } catch(e) {
+    sb = null;
+    badge.className = 'storage-badge local';
+    badge.textContent = '⚡ LOCAL';
+    console.warn('[ChillerMonitor] Supabase unavailable, using localStorage:', e.message);
+  }
+}
+ 
+/* getLogs — returns array sorted newest first */
+async function getLogs() {
+  if (sb) {
+    const { data, error } = await sb
+      .from('chiller_logs')
+      .select('*')
+      .order('incident_date', { ascending: false })
+      .order('created_at',    { ascending: false });
+    if (!error) return (data || []).map(dbToLog);
+    console.error('Supabase getLogs error:', error);
+  }
+  return JSON.parse(localStorage.getItem('chiller_logs_local') || '[]');
+}
+ 
+/* insertLog — inserts a single new log row */
+async function insertLog(log) {
+  if (sb) {
+    const { error } = await sb.from('chiller_logs').insert(logToDb(log));
+    if (!error) return;
+    console.error('Supabase insertLog error:', error);
+  }
+  // localStorage fallback
+  const logs = JSON.parse(localStorage.getItem('chiller_logs_local') || '[]');
+  logs.unshift(log);
+  localStorage.setItem('chiller_logs_local', JSON.stringify(logs));
+}
+ 
+/* removeLog — deletes a single row by id */
+async function removeLog(id) {
+  if (sb) {
+    const { error } = await sb.from('chiller_logs').delete().eq('id', id);
+    if (!error) return;
+    console.error('Supabase removeLog error:', error);
+  }
+  const logs = JSON.parse(localStorage.getItem('chiller_logs_local') || '[]');
+  localStorage.setItem('chiller_logs_local', JSON.stringify(logs.filter(l => l.id !== id)));
+}
+ 
+/* Map DB row → app log object */
+function dbToLog(row) {
+  return {
+    id:       row.id,
+    dateObj:  row.incident_date,           // YYYY-MM-DD
+    date:     fmtDisplayDate(row.incident_date, row.created_at),
+    code:     row.alarm_code,
+    name:     row.alarm_name,
+    sev:      row.severity,
+    unit:     row.machine_unit,
+    circuit:  row.circuit,
+    tech:     row.technician,
+    time:     row.downtime_mins,
+    notes:    row.notes
+  };
+}
+ 
+/* Map app log object → DB insert payload */
+function logToDb(log) {
+  return {
+    incident_date: log.dateObj,
+    alarm_code:    log.code,
+    alarm_name:    log.name,
+    severity:      log.sev,
+    machine_unit:  log.unit,
+    circuit:       log.circuit,
+    technician:    log.tech,
+    downtime_mins: log.time,
+    notes:         log.notes
+  };
+}
+ 
+function fmtDisplayDate(dateObj, createdAt) {
+  const p = (dateObj||'').split('-');
+  const datePart = p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : (dateObj||'');
+  const timePart = createdAt
+    ? new Date(createdAt).toLocaleTimeString('en-IN',{hour12:false,hour:'2-digit',minute:'2-digit'})
+    : '';
+  return timePart ? `${datePart} ${timePart}` : datePart;
+}
+ 
+/* ============================================================
+   CLOCK
+   ============================================================ */
+function updateClock() {
+  const now = new Date();
+  document.getElementById('liveClock').innerHTML =
+    `${now.toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'})}<span>IST</span>`;
+}
+setInterval(updateClock, 30000); updateClock();
+ 
+function getSeverityColor(sev) {
+  if(sev==='critical') return 'var(--crit)';
+  if(sev==='warning') return 'var(--warn)';
+  if(sev==='sensor') return 'var(--sens)';
+  return 'var(--maint)';
+}
+ 
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+ 
+/* ============================================================
+   VIEW MANAGEMENT
+   ============================================================ */
+function switchMainView(view, clearSearch) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.getElementById('tab-' + view).classList.add('active');
+  document.getElementById('mainNav').style.display = 'flex';
+  if(view==='home') {
+    if(clearSearch) document.getElementById('searchInput').value = '';
+    handleSearch(); // always respect current search box value
+  }
+  if(view==='logs') loadLogs();
+  if(view==='dashboard') renderDashboard();
+  window.scrollTo(0,0);
+}
+ 
+/* ============================================================
+   HOME — CATEGORIES & SEARCH
+   ============================================================ */
+// Track which categories are open
+const openCats = new Set();
+ 
+function renderCategories() {
+  const container = document.getElementById('categoryView');
+  let html = '';
+  CATEGORIES.forEach(cat => {
+    const alarms = cat.codes.map(c => ALARM_MAP[c]).filter(Boolean);
+    const sevCounts = { critical:0, warning:0, sensor:0, maintenance:0 };
+    alarms.forEach(a => { if(sevCounts[a.sev]!==undefined) sevCounts[a.sev]++; });
+    const isOpen = openCats.has(cat.id);
+ 
+    const dots = Object.entries(sevCounts).filter(([,v])=>v>0).map(([k])=>
+      `<div class="sev-dot" style="background:${getSeverityColor(k)}" title="${k}"></div>`).join('');
+ 
+    html += `
+      <div class="category-group" id="catgroup-${cat.id}">
+        <div class="category-header ${isOpen?'open':''}" onclick="toggleCat('${cat.id}')">
+          <div class="cat-icon">${cat.icon}</div>
+          <div class="cat-info">
+            <div class="cat-name">${cat.name}</div>
+            <div class="cat-desc">${cat.desc}</div>
+          </div>
+          <div class="cat-meta">
+            <div class="cat-sev-dots">${dots}</div>
+            <div class="cat-count">${alarms.length}</div>
+          </div>
+          <div class="cat-chevron">▶</div>
+        </div>
+        <div class="category-body ${isOpen?'open':''}" id="catbody-${cat.id}">
+          <div class="alarm-list">
+            ${alarms.map(a => alarmCardHTML(a)).join('')}
+          </div>
+        </div>
+      </div>`;
+  });
+  container.innerHTML = html;
+}
+ 
+function alarmCardHTML(a) {
+  return `
+    <div class="alarm-card" onclick="initWizard('${a.code}')">
+      <div class="ac-indicator ${a.sev}"></div>
+      <div class="ac-code ${a.sev}">${a.code}</div>
+      <div class="ac-body">
+        <div class="ac-title">${a.name}</div>
+        <div class="ac-sub"><span>REG: ${a.reg}</span><span>•</span><span style="color:${getSeverityColor(a.sev)}">${a.sev.toUpperCase()}</span>${a.stops ? '<span style="color:var(--crit)">• STOPS UNIT</span>':''}</div>
+      </div>
+      <div class="ac-arrow">›</div>
+    </div>`;
+}
+ 
+function toggleCat(id) {
+  const header = document.querySelector(`#catgroup-${id} .category-header`);
+  const body = document.getElementById(`catbody-${id}`);
+  if(openCats.has(id)) {
+    openCats.delete(id);
+    header.classList.remove('open');
+    body.classList.remove('open');
+  } else {
+    openCats.add(id);
+    header.classList.add('open');
+    body.classList.add('open');
+  }
+}
+ 
+function handleSearch() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const catView = document.getElementById('categoryView');
+  const searchView = document.getElementById('searchView');
+  const resultsList = document.getElementById('searchResultsList');
+  const searchHeader = document.getElementById('searchHeader');
+ 
+  if (!q) {
+    catView.style.display = 'block';
+    searchView.style.display = 'none';
+    return;
+  }
+ 
+  catView.style.display = 'none';
+  searchView.style.display = 'block';
+ 
+  const results = ALARMS.filter(a =>
+    a.code.toLowerCase().includes(q) ||
+    a.name.toLowerCase().includes(q) ||
+    a.cause.toLowerCase().includes(q)
+  );
+ 
+  searchHeader.textContent = `${results.length} result${results.length!==1?'s':''} for "${document.getElementById('searchInput').value}"`;
+ 
+  if (results.length === 0) {
+    resultsList.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>NO MATCHING ALARMS<br>Try a different code or symptom keyword</p></div>`;
+    return;
+  }
+ 
+  resultsList.innerHTML = results.map(a => {
+    const cat = CODE_CATEGORY[a.code];
+    return `
+      <div class="search-result-card" onclick="initWizard('${a.code}')">
+        <div class="ac-indicator ${a.sev}"></div>
+        <div class="ac-code ${a.sev}">${a.code}</div>
+        <div class="ac-body">
+          <div class="ac-title">${a.name}</div>
+          <div class="ac-sub">
+            <span>REG: ${a.reg}</span><span>•</span>
+            <span style="color:${getSeverityColor(a.sev)}">${a.sev.toUpperCase()}</span>
+            ${cat ? `<span>•</span><span class="src-cat-tag">${cat.icon} ${cat.name}</span>` : ''}
+          </div>
+        </div>
+        <div class="ac-arrow">›</div>
+      </div>`;
+  }).join('');
+}
+ 
+/* ============================================================
+   WIZARD
+   ============================================================ */
+let wizState = { step: 0, alarm: null };
+ 
+function initWizard(code) {
+  const a = ALARM_MAP[code];
+  if(!a) return;
+  wizState.alarm = a; wizState.step = 0;
+ 
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('mainNav').style.display = 'none';
+  document.getElementById('view-wizard').classList.add('active');
+ 
+  document.getElementById('woCode').textContent = a.code;
+  document.getElementById('woCode').style.color = getSeverityColor(a.sev);
+  document.getElementById('woReg').textContent = `Modbus: ${a.reg}`;
+  document.getElementById('woName').textContent = a.name;
+  document.getElementById('woCause').textContent = a.cause;
+ 
+  document.getElementById('wizCheckList').innerHTML = a.check.map(txt => `
+    <div class="tactile-item" onclick="this.classList.toggle('checked')">
+      <div class="t-box"></div><div class="t-text">${txt}</div>
+    </div>`).join('');
+ 
+  document.getElementById('wizFixList').innerHTML = a.fix.map(txt => `
+    <div class="tactile-item" onclick="this.classList.toggle('checked')">
+      <div class="t-box"></div><div class="t-text">${txt}</div>
+    </div>`).join('');
+ 
+  document.getElementById('logUnit').value = 'chiller-1';
+  document.getElementById('logCircuit').value = 'Circuit 1';
+  document.getElementById('logDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('logTech').value = '';
+  document.getElementById('logTime').value = '';
+  document.getElementById('logNotes').value = '';
+ 
+  updateWizUI();
+  window.scrollTo(0,0);
+}
+ 
+function updateWizUI() {
+  for(let i=0;i<=2;i++) {
+    const tab = document.getElementById(`tab-${i}`);
+    tab.className = 'step-tab';
+    if(i===wizState.step) tab.classList.add('active');
+    if(i<wizState.step) tab.classList.add('done');
+    document.getElementById(`step-${i}`).classList.remove('active');
+  }
+  document.getElementById(`step-${wizState.step}`).classList.add('active');
+  const nxt = document.getElementById('btnWizNext');
+  const prv = document.getElementById('btnWizPrev');
+  const can = document.getElementById('btnWizCancel');
+  nxt.disabled = false;
+  if(wizState.step===0){ nxt.textContent='Begin Action'; prv.style.display='none'; can.style.display='block'; }
+  else if(wizState.step===1){ nxt.textContent='Proceed to Log'; prv.style.display='block'; can.style.display='none'; }
+  else { nxt.textContent='Save Log Entry'; prv.style.display='block'; can.style.display='none'; validateForm(); }
+  window.scrollTo(0,0);
+}
+ 
+function validateForm() {
+  if(wizState.step===2) {
+    const ok = document.getElementById('logDate').value &&
+                document.getElementById('logTech').value &&
+                document.getElementById('logTime').value.trim();
+    document.getElementById('btnWizNext').disabled = !ok;
+  }
+}
+['logDate','logTime'].forEach(id => document.getElementById(id).addEventListener('input', validateForm));
+document.getElementById('logTech').addEventListener('change', validateForm);
+ 
+function nextStep() {
+  if(wizState.step===2) submitLog();
+  else { wizState.step++; updateWizUI(); }
+}
+function prevStep() { if(wizState.step>0){ wizState.step--; updateWizUI(); } }
+function abortWizard() { switchMainView('home'); }
+ 
+/* ============================================================
+   SUBMIT LOG
+   ============================================================ */
+async function submitLog() {
+  const dateInput = document.getElementById('logDate').value;
+  const newLog = {
+    id:      Date.now(), // temp id for localStorage fallback; Supabase generates its own
+    dateObj: dateInput,
+    date:    fmtDisplayDate(dateInput, new Date().toISOString()),
+    code:    wizState.alarm.code,
+    name:    wizState.alarm.name,
+    sev:     wizState.alarm.sev,
+    unit:    document.getElementById('logUnit').value,
+    circuit: document.getElementById('logCircuit').value,
+    tech:    document.getElementById('logTech').value,
+    time:    parseInt(document.getElementById('logTime').value) || 0,
+    notes:   document.getElementById('logNotes').value.trim() || 'Standard diagnostic complete.'
+  };
+  await insertLog(newLog);
+  showToast('Log saved!');
+  switchMainView('home');
+}
+ 
+/* ============================================================
+   LOGS VIEW
+   ============================================================ */
+let activeFilters = { startDate:'', endDate:'', unit:'all', tech:'all', circuit:'all' };
+ 
+function applyLogsFilter() {
+  activeFilters.startDate = document.getElementById('filterStartDate').value;
+  activeFilters.endDate = document.getElementById('filterEndDate').value;
+  activeFilters.unit = document.getElementById('filterUnit').value;
+  activeFilters.tech = document.getElementById('filterTech').value;
+  activeFilters.circuit = document.getElementById('filterCircuit').value;
+  renderLogsList();
+}
+function resetLogsFilter() {
+  ['filterStartDate','filterEndDate'].forEach(id => document.getElementById(id).value = '');
+  ['filterUnit','filterTech','filterCircuit'].forEach(id => document.getElementById(id).value = id==='filterUnit'?'all':'all');
+  activeFilters = { startDate:'', endDate:'', unit:'all', tech:'all', circuit:'all' };
+  renderLogsList();
+}
+ 
+async function loadLogs() {
+  document.getElementById('filterStartDate').value = activeFilters.startDate;
+  document.getElementById('filterEndDate').value = activeFilters.endDate;
+  document.getElementById('filterUnit').value = activeFilters.unit;
+  document.getElementById('filterTech').value = activeFilters.tech;
+  document.getElementById('filterCircuit').value = activeFilters.circuit;
+  await renderLogsList();
+}
+ 
+async function renderLogsList() {
+  const list = document.getElementById('historyList');
+  list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);font-family:var(--font-mono);font-size:0.8rem;">Loading...</div>`;
+  let logs = await getLogs();
+  if(activeFilters.startDate) logs = logs.filter(l => l.dateObj >= activeFilters.startDate);
+  if(activeFilters.endDate) logs = logs.filter(l => l.dateObj <= activeFilters.endDate);
+  if(activeFilters.unit !== 'all') logs = logs.filter(l => l.unit === activeFilters.unit);
+  if(activeFilters.tech !== 'all') logs = logs.filter(l => l.tech === activeFilters.tech);
+  if(activeFilters.circuit !== 'all') logs = logs.filter(l => l.circuit === activeFilters.circuit);
+ 
+  document.getElementById('logsResultCount').innerHTML = `Showing <span>${logs.length}</span> record${logs.length!==1?'s':''}`;
+ 
+  if(logs.length===0){
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>NO RECORDS FOUND<br>Adjust filters or log a new incident</p></div>`;
+    return;
+  }
+ 
+  list.innerHTML = logs.map(log => {
+    const sevColor = getSeverityColor(log.sev || 'maintenance');
+    return `
+      <div class="history-card">
+        <div class="hc-header">
+          <div class="hc-date">${log.date}</div>
+          <div class="hc-tech">${log.tech}</div>
+        </div>
+        <div class="hc-code" style="color:${sevColor}">${log.code}</div>
+        <div class="hc-name">${log.name}</div>
+        <div class="hc-unit-badge">${log.unit} | ${log.circuit}</div>
+        <div class="hc-notes">"${log.notes}"</div>
+        <div class="hc-footer">
+          <div class="hc-time">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Downtime: ${log.time} mins
+          </div>
+          <button class="hc-delete-btn" onclick="deleteLog(${log.id})">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+ 
+async function deleteLog(id) {
+  await removeLog(id);
+  await renderLogsList();
+  showToast('Entry deleted.');
+}
+ 
+/* ============================================================
+   DOWNLOAD CSV
+   ============================================================ */
+async function downloadLogs() {
+  let logs = await getLogs();
+ 
+  // Apply active filters to export only what's visible
+  if(activeFilters.startDate) logs = logs.filter(l => l.dateObj >= activeFilters.startDate);
+  if(activeFilters.endDate) logs = logs.filter(l => l.dateObj <= activeFilters.endDate);
+  if(activeFilters.unit !== 'all') logs = logs.filter(l => l.unit === activeFilters.unit);
+  if(activeFilters.tech !== 'all') logs = logs.filter(l => l.tech === activeFilters.tech);
+  if(activeFilters.circuit !== 'all') logs = logs.filter(l => l.circuit === activeFilters.circuit);
+ 
+  if(logs.length === 0){ showToast('No data to export!'); return; }
+ 
+  const headers = ['Date','Time','Fault Code','Alarm Name','Severity','Machine','Circuit','Technician','Downtime (mins)','Notes'];
+  const rows = logs.map(l => {
+    const [datePart, timePart] = l.date.split(' ');
+    const notes = (l.notes || '').replace(/"/g,'""'); // escape quotes
+    return [
+      datePart || l.date, timePart || '',
+      l.code, l.name, l.sev || '', l.unit, l.circuit, l.tech, l.time, `"${notes}"`
+    ].join(',');
+  });
+ 
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const today = new Date().toISOString().split('T')[0];
+  a.download = `cryosentinel_incidents_${today}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${logs.length} records`);
+}
+ 
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+let currentChartLogs = [];
+ 
+async function renderDashboard() {
+  let allLogs = await getLogs();
+ 
+  // --- Populate month dropdown from actual data ---
+  const monthSet = new Set();
+  allLogs.forEach(l => {
+    if(l.dateObj) {
+      const p = l.dateObj.split('-');
+      if(p.length===3) monthSet.add(`${p[0]}-${p[1]}`); // YYYY-MM
+    }
+  });
+  const monthSel = document.getElementById('dashMonthFilter');
+  const currentMonthVal = monthSel.value;
+  // Rebuild options
+  const sortedMonths = Array.from(monthSet).sort().reverse();
+  let monthOpts = '<option value="all">All Time</option>';
+  sortedMonths.forEach(ym => {
+    const [yr,mo] = ym.split('-');
+    const label = new Date(yr, mo-1, 1).toLocaleString('en-IN', {month:'short', year:'numeric'});
+    monthOpts += `<option value="${ym}" ${currentMonthVal===ym?'selected':''}>${label}</option>`;
+  });
+  monthSel.innerHTML = monthOpts;
+ 
+  // --- Apply filters ---
+  const unitFilter = document.getElementById('dashUnitFilter').value;
+  const monthFilter = monthSel.value;
+ 
+  let logs = allLogs;
+  if(unitFilter !== 'All plant') logs = logs.filter(l => l.unit === unitFilter);
+  if(monthFilter !== 'all') logs = logs.filter(l => l.dateObj && l.dateObj.startsWith(monthFilter));
+ 
+  const total = logs.length;
+  const totalMins = logs.reduce((s,l) => s+(l.time||0), 0);
+  const hours = Math.floor(totalMins/60), mins = totalMins%60;
+  const mttr = total>0 ? Math.round(totalMins/total) : 0;
+ 
+  let faultCounts = {};
+  logs.forEach(l => { faultCounts[l.code] = (faultCounts[l.code]||0)+1; });
+  let topFault = '--', topFaultName = '--';
+  if(Object.keys(faultCounts).length>0) {
+    topFault = Object.keys(faultCounts).reduce((a,b) => faultCounts[a]>faultCounts[b]?a:b);
+    const af = ALARM_MAP[topFault];
+    if(af) topFaultName = af.name;
+  }
+ 
+  document.getElementById('dashTotalFixes').textContent = total;
+  document.getElementById('dashTotalHours').textContent = `${hours}h ${mins}m`;
+  document.getElementById('dashMTTR').textContent = `${mttr}m`;
+  document.getElementById('dashTopFault').textContent = topFault;
+  document.getElementById('dashTopFaultName').textContent = topFaultName;
+ 
+  if(total===0) {
+    document.getElementById('severityLegend').innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">No data for this filter.</p>';
+    document.getElementById('severityDonut').style.background = `conic-gradient(var(--bg-input) 100%)`;
+    document.getElementById('donutCenter').textContent = '0';
+    document.getElementById('chartCircuits').innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">No data.</p>';
+    document.getElementById('svgChartContainer').innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding-top:40px;">No incidents logged yet.</p>';
+    document.getElementById('chartTooltip').style.display = 'none';
+    return;
+  }
+ 
+  // Chart always shows day-by-day trend; month dropdown just narrows which days are visible
+  renderSVGChart(logs, 'day');
+ 
+  // Severity donut
+  let sev = {critical:0,warning:0,sensor:0,maintenance:0};
+  logs.forEach(l => { const a=ALARM_MAP[l.code]; if(a&&sev[a.sev]!==undefined) sev[a.sev]++; });
+  const cD=sev.critical/total*360, wD=cD+sev.warning/total*360, sD=wD+sev.sensor/total*360;
+  document.getElementById('severityDonut').style.background =
+    `conic-gradient(var(--crit) 0deg ${cD}deg,var(--warn) ${cD}deg ${wD}deg,var(--sens) ${wD}deg ${sD}deg,var(--maint) ${sD}deg 360deg)`;
+  document.getElementById('donutCenter').textContent = total;
+  document.getElementById('severityLegend').innerHTML = `
+    <div class="legend-item"><div class="legend-dot" style="background:var(--crit)"></div> Critical (${sev.critical})</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div> Warning (${sev.warning})</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--sens)"></div> Sensor (${sev.sensor})</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--maint)"></div> Maint. (${sev.maintenance})</div>`;
+ 
+  // Circuit bars
+  let cc = {'Circuit 1':0,'Circuit 2':0,'Common System':0};
+  logs.forEach(l => { if(cc[l.circuit]!==undefined) cc[l.circuit]++; });
+  const maxC = Math.max(...Object.values(cc), 1);
+  document.getElementById('chartCircuits').innerHTML = Object.entries(cc).map(([c,n]) =>
+    `<div class="bar-row">
+      <div class="bar-label">${c==='Common System'?'SYSTEM':c.replace('Circuit ','C')}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(n/maxC)*100}%"></div></div>
+      <div class="bar-val">${n}</div>
+    </div>`).join('');
+}
+ 
+function renderSVGChart(logs, groupMode) {
+  currentChartLogs = logs;
+  // Group by month (YYYY-MM) or day (YYYY-MM-DD)
+  let dc = {};
+  logs.forEach(l => {
+    if(!l.dateObj) return;
+    const key = groupMode === 'month' ? l.dateObj.slice(0,7) : l.dateObj;
+    dc[key] = (dc[key]||0)+1;
+  });
+  const keys = Object.keys(dc).sort();
+  const container = document.getElementById('svgChartContainer');
+  document.getElementById('chartTooltip').style.display = 'none';
+  if(!keys.length){ container.innerHTML=''; return; }
+ 
+  const W=800, H=200, px=42, py=30, gW=W-px*2, gH=H-py*2;
+  const max = Math.max(...Object.values(dc), 1);
+  const single = keys.length===1;
+  let path='', circles='', labels='';
+ 
+  keys.forEach((k,i) => {
+    const cnt = dc[k];
+    const x = single ? px+gW/2 : px+(i/(keys.length-1))*gW;
+    const y = H-py-(cnt/max)*gH;
+    path += (i===0 ? `M ${x} ${y} ` : `L ${x} ${y} `);
+ 
+    // Label: for month show "Jun 25", for day show "15/06"
+    let lbl;
+    if(groupMode==='month') {
+      const [yr,mo] = k.split('-');
+      lbl = new Date(yr, mo-1, 1).toLocaleString('en-IN',{month:'short'}) + ' ' + yr.slice(2);
+    } else {
+      const [yr,mo,da] = k.split('-');
+      lbl = `${da}/${mo}`;
+    }
+    circles += `<circle class="point-circle" cx="${x}" cy="${y}" r="5" onclick="showChartDetails('${k}','${groupMode}')"/>`;
+    labels += `<text class="axis-text" x="${x}" y="${H-6}" text-anchor="middle">${lbl}</text>`;
+  });
+ 
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="none" style="overflow:visible">
+    <line x1="${px}" y1="${H-py}" x2="${W-px}" y2="${H-py}" stroke="var(--border)" stroke-width="2"/>
+    <line x1="${px}" y1="${py}" x2="${W-px}" y2="${py}" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
+    <text class="axis-text" x="6" y="${py+4}">${max}</text>
+    <text class="axis-text" x="6" y="${H-py+4}">0</text>
+    <path class="line-path" d="${path}"/>
+    ${circles}${labels}
+  </svg>`;
+}
+ 
+function showChartDetails(key, groupMode) {
+  const tt = document.getElementById('chartTooltip');
+  let dl;
+  let label;
+  if(groupMode==='month') {
+    dl = currentChartLogs.filter(l => l.dateObj && l.dateObj.startsWith(key));
+    const [yr,mo] = key.split('-');
+    label = new Date(yr, mo-1, 1).toLocaleString('en-IN',{month:'long', year:'numeric'});
+  } else {
+    dl = currentChartLogs.filter(l => l.dateObj === key);
+    const [yr,mo,da] = key.split('-');
+    label = `${da}/${mo}/${yr}`;
+  }
+  tt.innerHTML = `<h4>${label} — ${dl.length} incident${dl.length!==1?'s':''}</h4>
+    <ul>${dl.map(l=>`<li><strong>${l.code}</strong>: ${l.name} <span style="color:var(--text-muted);font-size:0.8rem;">(${l.tech})</span></li>`).join('')}</ul>`;
+  tt.style.display = 'block';
+}
+ 
+/* ============================================================
+   BOOT
+   ============================================================ */
+(async () => {
+  await initStorage();
+  switchMainView('home');
+})();
+</script>
+</body>
+</html>
